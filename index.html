@@ -14,95 +14,186 @@
             user-select: none;
         }
         body {
-            background-color: #1a1a24;
+            background-color: #13131a;
             color: white;
-            font-family: sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             height: 100vh;
             overflow: hidden;
         }
-        #header {
-            padding: 12px;
-            text-align: center;
-            font-size: 14px;
-            background: #252538;
+        /* Верхняя панель управления и статистики */
+        #top-panel {
             width: 100%;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            background: #1c1c28;
+            padding: 10px 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
+        .user-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+        .stats-row {
+            display: flex;
+            justify-content: space-around;
+            background: #252536;
+            padding: 6px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        .stat-item {
+            color: #f1c40f;
+            font-weight: bold;
+        }
+        
+        /* Игровое поле */
         #gameCanvas {
-            margin-top: 15px;
-            background-color: #0d0d13;
+            margin-top: 10px;
+            background-color: #0b0b10;
             border: 2px solid #3a3a52;
             border-radius: 8px;
             touch-action: none;
         }
-        #status {
-            margin-top: 10px;
+
+        /* Нижнее меню с кнопками */
+        #bottom-menu {
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px;
+            background: #1c1c28;
+            margin-top: auto;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.5);
+            gap: 8px;
+        }
+        .game-btn {
+            flex: 1;
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 5px;
+            border-radius: 6px;
             font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .game-btn:active {
+            transform: scale(0.95);
+        }
+        .btn-alliance { background: #9b59b6; }
+        .btn-attack { background: #e74c3c; }
+
+        #status {
+            font-size: 11px;
             color: #8a8aab;
+            text-align: center;
+            padding-bottom: 4px;
         }
     </style>
 </head>
 <body>
 
-    <div id="header">
-        <b id="userDisplay">Загрузка...</b>
-        <div>Глобальная стратегия: захватывай клетки!</div>
+    <!-- Верхняя панель -->
+    <div id="top-panel">
+        <div class="user-row">
+            <b id="userDisplay">Игрок</b>
+            <span id="status">🟢 Онлайн</span>
+        </div>
+        <div class="stats-row">
+            <div>💰 Золото: <span id="goldCount" class="stat-item">100</span></div>
+            <div>🏰 Территории: <span id="territoryCount" class="stat-item">0</span></div>
+            <div>⚔️ Армия: <span id="armyCount" class="stat-item">10</span></div>
+        </div>
     </div>
 
+    <!-- Холст карты -->
     <canvas id="gameCanvas"></canvas>
-    <div id="status">Подключение к серверу...</div>
+
+    <!-- Нижнее меню с кнопками -->
+    <div id="bottom-menu">
+        <button class="game-btn" onclick="alert('Выбери клетку на карте для захвата!')">🗺 Захват</button>
+        <button class="game-btn btn-alliance" onclick="alert('Система альянсов в разработке с Русланом!')">🤝 Альянс</button>
+        <button class="game-btn btn-attack" onclick="collectTax()">💰 Сбор налогов</button>
+    </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
 
         const user = tg.initDataUnsafe?.user || { first_name: "Игрок", id: Math.floor(Math.random() * 1000) };
-        document.getElementById('userDisplay').innerText = `Игрок: ${user.first_name}`;
+        document.getElementById('userDisplay').innerText = `🇷🇺 Страна: ${user.first_name}`;
 
-        // Уникальный цвет игрока на основе Telegram ID
         function getUserColor(id) {
             const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c'];
             return colors[id % colors.length];
         }
         const myColor = getUserColor(user.id);
 
-        // Игровая сетка 20x20
+        // Игровая логика ресурсов
+        let gold = 100;
+        let army = 10;
+        let territories = 0;
+
+        function updateStats() {
+            document.getElementById('goldCount').innerText = gold;
+            document.getElementById('armyCount').innerText = army;
+            document.getElementById('territoryCount').innerText = territories;
+        }
+
+        function collectTax() {
+            gold += territories * 5 + 10;
+            updateStats();
+            tg.HapticFeedback.notificationOccurred('success');
+        }
+
+        // Сетка карты
         const GRID_SIZE = 20;
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        const screenSize = Math.min(window.innerWidth - 30, window.innerHeight - 140);
+        const screenSize = Math.min(window.innerWidth - 20, window.innerHeight - 200);
         canvas.width = screenSize;
         canvas.height = screenSize;
         const tileSize = canvas.width / GRID_SIZE;
 
-        // Подключаемся к твоему бэкенду на Render
         const socket = io('https://gruppac-countrytg-bot.onrender.com');
-
         let mapData = {};
 
         socket.on('connect', () => {
-            document.getElementById('status').innerText = '🟢 Подключено к общей карте';
+            document.getElementById('status').innerText = '🟢 Сеть стабильна';
         });
 
         socket.on('disconnect', () => {
-            document.getElementById('status').innerText = '🔴 Нет соединения с сервером';
+            document.getElementById('status').innerText = '🔴 Переподключение...';
         });
 
-        // Получение текущего состояния карты при входе
         socket.on('initMap', (serverMap) => {
             mapData = serverMap;
+            calcMyTerritories();
             drawMap();
         });
 
-        // Обновление отдельной клетки при ходе игрока
         socket.on('updateTile', (data) => {
             mapData[`${data.x}:${data.y}`] = { color: data.color, owner: data.username };
+            calcMyTerritories();
             drawTile(data.x, data.y, data.color);
         });
+
+        function calcMyTerritories() {
+            let count = 0;
+            for (let key in mapData) {
+                if (mapData[key].owner === user.first_name) count++;
+            }
+            territories = count;
+            updateStats();
+        }
 
         function drawMap() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -120,22 +211,28 @@
             ctx.fillRect(x * tileSize, y * tileSize, tileSize - 2, tileSize - 2);
         }
 
-        // Клик по клетке карты
+        // Клик по клетке для захвата
         canvas.addEventListener('pointerdown', (e) => {
             const rect = canvas.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const clickY = e.clientY - rect.top;
-
-            const tileX = Math.floor(clickX / tileSize);
-            const tileY = Math.floor(clickY / tileSize);
+            const tileX = Math.floor((e.clientX - rect.left) / tileSize);
+            const tileY = Math.floor((e.clientY - rect.top) / tileSize);
 
             if (tileX >= 0 && tileX < GRID_SIZE && tileY >= 0 && tileY < GRID_SIZE) {
-                socket.emit('claimTile', {
-                    x: tileX,
-                    y: tileY,
-                    color: myColor,
-                    username: user.first_name
-                });
+                // Проверяем, хватает ли золота на ход (например, 10 золота за клетку)
+                if (gold >= 10) {
+                    gold -= 10;
+                    socket.emit('claimTile', {
+                        x: tileX,
+                        y: tileY,
+                        color: myColor,
+                        username: user.first_name
+                    });
+                    tg.HapticFeedback.impactOccurred('medium');
+                    updateStats();
+                } else {
+                    tg.HapticFeedback.notificationOccurred('error');
+                    alert('Недостаточно золота! Нажми «Сбор налогов».');
+                }
             }
         });
     </script>
