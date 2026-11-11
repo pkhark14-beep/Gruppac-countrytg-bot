@@ -2,9 +2,13 @@ const { Telegraf } = require('telegraf');
 const http = require('http');
 const { Server } = require('socket.io');
 
-const BOT_TOKEN = process.env.BOT_TOKEN || 'YOUR_BOT_TOKEN';
-const bot = new Telegraf(BOT_TOKEN);
+const BOT_TOKEN = process.env.BOT_TOKEN;
+if (!BOT_TOKEN) {
+    console.error('Ошибка: Не задан BOT_TOKEN!');
+    process.exit(1);
+}
 
+const bot = new Telegraf(BOT_TOKEN);
 const WEB_APP_URL = 'https://pkhark14-beep.github.io/Gruppac-countrytg-bot/';
 
 // Команда /start
@@ -22,9 +26,6 @@ bot.start((ctx) => {
         }
     });
 });
-
-bot.launch();
-console.log('Telegram-бот успешно запущен!');
 
 // Создаем HTTP-сервер
 const PORT = process.env.PORT || 10000;
@@ -55,7 +56,6 @@ io.on('connection', (socket) => {
 
     // Обработка захвата клетки
     socket.on('claimTile', (data) => {
-        // data = { x, y, color, username }
         const tileKey = `${data.x}:${data.y}`;
         mapState[tileKey] = {
             color: data.color,
@@ -76,9 +76,18 @@ io.on('connection', (socket) => {
     });
 });
 
+// Сначала запуск HTTP-сервера для Render, затем запуск бота
 server.listen(PORT, () => {
     console.log(`HTTP/Socket server is listening on port ${PORT}`);
+    
+    // Запускаем бота с обработкой ошибок 409, чтобы он не падал
+    bot.launch().then(() => {
+        console.log('Telegram-бот успешно запущен!');
+    }).catch((err) => {
+        console.error('Ошибка запуска бота:', err);
+    });
 });
 
+// Корректное завершение работы
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
