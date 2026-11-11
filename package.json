@@ -1,0 +1,12 @@
+{
+  "name": "gruppac-countrytg-bot",
+  "version": "1.0.0",
+  "description": "Telegram strategy game bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "telegraf": "^4.16.3"
+  }
+}
