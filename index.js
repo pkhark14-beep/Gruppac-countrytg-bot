@@ -2,7 +2,7 @@ const { Telegraf } = require('telegraf');
 const http = require('http');
 
 // Токен твоего бота (лучше потом вынести в переменные окружения Fly.io, но для теста можно вставить сюда)
-const BOT_TOKEN = process.env.BOT_TOKEN || ' 8790246634:AAExluyoCgCKkNPIm7z2fBb1Q0smSqzwHEk';
+const BOT_TOKEN = process.env.BOT_TOKEN || ' хуй тебе а не токен';
 const bot = new Telegraf(BOT_TOKEN);
 
 // Ссылка на твое мини-приложение (TMA), когда оно будет готово на GitHub Pages / Vercel
