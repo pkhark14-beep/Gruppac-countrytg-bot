@@ -1,21 +1,20 @@
 const { Telegraf } = require('telegraf');
 const http = require('http');
+const { Server } = require('socket.io');
 
-// Токен твоего бота
-const BOT_TOKEN = process.env.BOT_TOKEN || 'SOSI_HUI';
+const BOT_TOKEN = process.env.BOT_TOKEN || 'YOUR_BOT_TOKEN';
 const bot = new Telegraf(BOT_TOKEN);
 
-// Ссылка на твое мини-приложение (TMA)
 const WEB_APP_URL = 'https://pkhark14-beep.github.io/Gruppac-countrytg-bot/';
 
 // Команда /start
 bot.start((ctx) => {
-    ctx.reply('Привет! Доброболовать в глобальную стратегию. Нажми на кнопку ниже, чтобы открыть карту мира и управлять своей страной:', {
+    ctx.reply('Привет! Добро пожаловать в нашу приватную онлайн-стратегию. Нажми кнопку ниже, чтобы зайти на карту:', {
         reply_markup: {
             inline_keyboard: [
                 [
                     { 
-                        text: '🗺 Открыть карту мира', 
+                        text: '🗺 Войти на общую карту', 
                         web_app: { url: WEB_APP_URL } 
                     }
                 ]
@@ -24,20 +23,62 @@ bot.start((ctx) => {
     });
 });
 
-// Запуск бота
 bot.launch();
 console.log('Telegram-бот успешно запущен!');
 
-// Простейший HTTP-сервер для хостинга Render, 
-// чтобы он видел, что приложение живое и принимает порты
-const PORT = process.env.PORT || 8080;
-http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Bot is running!\n');
-}).listen(PORT, () => {
-    console.log(`HTTP server is listening on port ${PORT}`);
+// Создаем HTTP-сервер
+const PORT = process.env.PORT || 10000;
+const server = http.createServer((req, res) => {
+    res.writeHead(200, { 
+        'Content-Type': 'text/plain',
+        'Access-Control-Allow-Origin': '*'
+    });
+    res.end('Game Socket Server is running!\n');
 });
 
-// Корректная остановка
+// Подключаем Socket.io для мультиплеера
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
+
+// Хранилище захваченных клеток на карте
+let mapState = {};
+
+io.on('connection', (socket) => {
+    console.log('Игрок подключился:', socket.id);
+
+    // Отправляем новому игроку текущее состояние карты
+    socket.emit('initMap', mapState);
+
+    // Обработка захвата клетки
+    socket.on('claimTile', (data) => {
+        // data = { x, y, color, username }
+        const tileKey = `${data.x}:${data.y}`;
+        mapState[tileKey] = {
+            color: data.color,
+            owner: data.username
+        };
+
+        // Транслируем всем подключенным игрокам
+        io.emit('updateTile', {
+            x: data.x,
+            y: data.y,
+            color: data.color,
+            owner: data.username
+        });
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Игрок отключился:', socket.id);
+    });
+});
+
+server.listen(PORT, () => {
+    console.log(`HTTP/Socket server is listening on port ${PORT}`);
+});
+
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
