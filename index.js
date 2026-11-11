@@ -1,12 +1,12 @@
 const { Telegraf } = require('telegraf');
 const http = require('http');
 
-// Токен твоего бота (лучше потом вынести в переменные окружения Fly.io, но для теста можно вставить сюда)
+// Токен твоего бота
 const BOT_TOKEN = process.env.BOT_TOKEN || 'SOSI_HUI';
 const bot = new Telegraf(BOT_TOKEN);
 
-// Ссылка на твое мини-приложение (TMA), когда оно будет готово на GitHub Pages / Vercel
-const WEB_APP_URL = 'https://pkhark14-beep.github.io/Gruppac-countrytg-bot/'; // Заменишь на свою
+// Ссылка на твое мини-приложение (TMA)
+const WEB_APP_URL = 'https://pkhark14-beep.github.io/Gruppac-countrytg-bot/';
 
 // Команда /start
 bot.start((ctx) => {
@@ -28,13 +28,13 @@ bot.start((ctx) => {
 bot.launch();
 console.log('Telegram-бот успешно запущен!');
 
-// Простейший HTTP-сервер для хостингов вроде Fly.io / Render, 
-// чтобы они видели, что приложение живое и принимает порты
+// Простейший HTTP-сервер для хостинга Render, 
+// чтобы он видел, что приложение живое и принимает порты
 const PORT = process.env.PORT || 8080;
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('Bot is running!\n');
-listen(PORT, () => {
+}).listen(PORT, () => {
     console.log(`HTTP server is listening on port ${PORT}`);
 });
 
