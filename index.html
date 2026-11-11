@@ -3,36 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Стратегия на карте мира</title>
+    <title>Gruppas Country Game</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            user-select: none;
         }
-        body, html {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #000;
+        body {
+            background-color: #1a1a24;
+            color: white;
             font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
         }
-        iframe {
+        #header {
+            padding: 12px;
+            text-align: center;
+            font-size: 14px;
+            background: #252538;
             width: 100%;
-            height: 100%;
-            border: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        }
+        #gameCanvas {
+            margin-top: 10px;
+            background-color: #0d0d13;
+            border: 2px solid #3a3a52;
+            border-radius: 8px;
+            touch-action: none;
+        }
+        #status {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #8a8aab;
         }
     </style>
 </head>
 <body>
-    <!-- Встраиваем кастомное мультиплеерное поле стратегии -->
-    <iframe src="https://territorial.io/" allow="fullscreen"></iframe>
+
+    <div id="header">
+        <b id="userDisplay">Загрузка...</b>
+        <div>Нажимай на клетки, чтобы захватывать территорию!</div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+    <div id="status">Подключение к серверу...</div>
 
     <script>
-        // Инициализация Telegram Mini App
         const tg = window.Telegram.WebApp;
-        tg.expand(); // Разворачиваем на весь экран
+        tg.expand();
+
+        const user = tg.initDataUnsafe?.user || { first_name: "Игрок", id: Math.floor(Math.random() * 1000) };
+        document.getElementById('userDisplay').innerText = `Игрок: ${user.first_name}`;
+
+        // Генерируем уникальный цвет для каждого игрока на основе его ID
+        function getUserColor(id) {
+            const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c'];
+            return colors[id % colors.length];
+        }
+        const myColor = getUserColor(user.id);
+
+        // Настройки сетки
+        const GRID_SIZE = 20; // 20x20 клеток
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const screenSize = Math.min(window.innerWidth - 20, window.innerHeight - 120);
+        canvas.width = screenSize;
+        canvas.height = screenSize;
+        const tileSize = canvas.width / GRID_SIZE;
+
+        // Подключаемся к твоему серверу на Render
+        const socket = io('https://gruppac-countrytg-bot.onrender.com');
+
+        let mapData = {};
+
+        socket.on('connect', () => {
+            document.getElementById('status').innerText = '🟢 Подключено к общей карте';
+        });
+
+        socket.on('disconnect', () => {
+            document.getElementById('status').innerText = '🔴 Соединение потеряно, переподключение...';
+        });
+
+        // Загрузка начальной карты
+        socket.on('initMap', (serverMap) => {
+            mapData = serverMap;
+            drawMap();
+        });
+
+        // Обновление одной клетки от любого игрока
+        socket.on('updateTile', (data) => {
+            mapData[`${data.x}:${data.y}`] = { color: data.color, owner: data.owner };
+            drawTile(data.x, data.y, data.color);
+        });
+
+        // Отрисовка всей карты
+        function drawMap() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    const key = `${x}:${y}`;
+                    const color = mapData[key] ? mapData[key].color : '#161622';
+                    drawTile(x, y, color);
+                }
+            }
+        }
+
+        function drawTile(x, y, color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(x * tileSize, y * tileSize, tileSize - 1, tileSize - 1);
+        }
+
+        // Обработка клика/тапа
+        canvas.addEventListener('pointerdown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            const tileX = Math.floor(clickX / tileSize);
+            const tileY = Math.floor(clickY / tileSize);
+
+            if (tileX >= 0 && tileX < GRID_SIZE && tileY >= 0 && tileY < GRID_SIZE) {
+                // Отправляем ход на сервер
+                socket.emit('claimTile', {
+                    x: tileX,
+                    y: tileY,
+                    color: myColor,
+                    username: user.first_name
+                });
+            }
+        });
     </script>
 </body>
 </html>
